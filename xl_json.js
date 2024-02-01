@@ -2,39 +2,35 @@ const xlsx = require('xlsx');
 const fs = require('fs');
 
 // Read the Excel file
-const workbook = xlsx.readFile('script.xlsx');
+const workbook = xlsx.readFile('UW_Script.xlsx');
 const sheetNameList = workbook.SheetNames;
-
-// Assuming that your data is in the first sheet
 const xlData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetNameList[0]]);
 
-// Parse the data according to the JSON structure you provided
-const sections = [];
+const jsonData = { Section: [] };
+let currentSection = null;
+
 xlData.forEach(row => {
-    // Assuming you have columns named 'Section', 'SectionId', 'QuestionText', 'QuestionOptions' in the Excel
-    let section = sections.find(s => s.name === row.Section);
-    if (!section) {
-        section = {
+    // Check if we are in a new section
+    if (!currentSection || currentSection.name !== row.Section) {
+        currentSection = {
             name: row.Section,
-            id: row.SectionId,
+            id: row.Section ? row.Section.replace(/\s+/g, '') : null, // Generate an ID from Section name
             QuestionGroup: []
         };
-        sections.push(section);
+        jsonData.Section.push(currentSection);
     }
 
-    let questionOptions = row.QuestionOptions ? row.QuestionOptions.split(',') : null;
-    section.QuestionGroup.push({
-        QuestionText: row.QuestionText,
-        QuestionOptions: questionOptions
-    });
+    // Add question to the current section
+    if (row.Question) {
+        currentSection.QuestionGroup.push({
+            QuestionText: row.Question,
+            QuestionOptions: row['Answer Options'] ? row['Answer Options'].split(',') : null
+        });
+    }
 });
 
-const jsonData = {
-    Section: sections
-};
-
-// Write to a JSON file
-fs.writeFile('script_converted.json', JSON.stringify(jsonData, null, 4), (err) => {
+// Write the JSON structure to a file
+fs.writeFile('uw_script_converted.json', JSON.stringify(jsonData, null, 2), (err) => {
     if (err) {
         console.log('Error writing JSON to file:', err);
     } else {
